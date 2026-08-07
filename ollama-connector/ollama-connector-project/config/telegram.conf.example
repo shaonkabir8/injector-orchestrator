@@ -1,0 +1,6 @@
+# Telegram Bot Configuration
+# Rename this file to telegram.conf and fill in your credentials.
+# Get a bot token from @BotFather on Telegram.
+
+TELEGRAM_BOT_TOKEN="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+TELEGRAM_CHAT_ID="123456789"

@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Ollama Connector"
+version = "1.0.0"
+id = "artifacts/ollama-connector"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25763
+
+[services.development]
+run = "pnpm --filter @workspace/ollama-connector run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ollama-connector", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/ollama-connector/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25763"
+BASE_PATH = "/"

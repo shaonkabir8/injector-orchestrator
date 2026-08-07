@@ -1,0 +1,585 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Ollama Connector API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: loop
+    description: Agentic loop control
+  - name: metrics
+    description: Metrics collection
+  - name: logs
+    description: Log management
+  - name: checkpoints
+    description: Checkpoint management
+  - name: settings
+    description: Configuration
+  - name: models
+    description: Ollama model management
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /loop/status:
+    get:
+      operationId: getLoopStatus
+      tags: [loop]
+      summary: Get current loop status
+      responses:
+        "200":
+          description: Loop status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoopStatus"
+
+  /loop/start:
+    post:
+      operationId: startLoop
+      tags: [loop]
+      summary: Start the agentic loop
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoopStartInput"
+      responses:
+        "200":
+          description: Loop started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoopStatus"
+
+  /loop/stop:
+    post:
+      operationId: stopLoop
+      tags: [loop]
+      summary: Stop the agentic loop
+      responses:
+        "200":
+          description: Loop stopped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoopStatus"
+
+  /loop/resume:
+    post:
+      operationId: resumeLoop
+      tags: [loop]
+      summary: Resume loop from last checkpoint
+      responses:
+        "200":
+          description: Loop resumed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoopStatus"
+
+  /metrics:
+    get:
+      operationId: getMetrics
+      tags: [metrics]
+      summary: Get all recorded metrics
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+          description: Max entries to return
+      responses:
+        "200":
+          description: Metrics list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MetricEntry"
+
+  /metrics/summary:
+    get:
+      operationId: getMetricsSummary
+      tags: [metrics]
+      summary: Aggregated metrics summary for dashboard
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetricsSummary"
+
+  /logs:
+    get:
+      operationId: getLogs
+      tags: [logs]
+      summary: Get recent log entries
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+          description: Max log lines to return
+        - name: level
+          in: query
+          schema:
+            type: string
+          description: Filter by log level (INFO, SUCCESS, WARN, ERROR, STEP, CHECK)
+      responses:
+        "200":
+          description: Log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LogEntry"
+    delete:
+      operationId: clearLogs
+      tags: [logs]
+      summary: Clear all log entries
+      responses:
+        "200":
+          description: Logs cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResult"
+
+  /checkpoints:
+    get:
+      operationId: getCheckpoints
+      tags: [checkpoints]
+      summary: List all saved checkpoints
+      responses:
+        "200":
+          description: Checkpoints list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Checkpoint"
+
+  /checkpoints/{id}:
+    delete:
+      operationId: deleteCheckpoint
+      tags: [checkpoints]
+      summary: Delete a checkpoint by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Checkpoint deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResult"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /checkpoints/{id}/restore:
+    post:
+      operationId: restoreCheckpoint
+      tags: [checkpoints]
+      summary: Restore loop state from a specific checkpoint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Loop restored from checkpoint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckpointRestoreResult"
+        "404":
+          description: Checkpoint not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get current configuration settings
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+    put:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update configuration settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+
+  /settings/test-connection:
+    post:
+      operationId: testConnection
+      tags: [settings]
+      summary: Test the connection to an Ollama instance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TestConnectionInput"
+      responses:
+        "200":
+          description: Connection test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestConnectionResult"
+
+  /models:
+    get:
+      operationId: getModels
+      tags: [models]
+      summary: List available Ollama models
+      responses:
+        "200":
+          description: Model list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OllamaModel"
+
+  /models/pull:
+    post:
+      operationId: pullModel
+      tags: [models]
+      summary: Pull a model from Ollama registry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModelPullInput"
+      responses:
+        "200":
+          description: Pull result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelPullResult"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    LoopStatus:
+      type: object
+      required: [running, iteration, state]
+      properties:
+        running:
+          type: boolean
+        iteration:
+          type: integer
+        state:
+          type: string
+          enum: [idle, running, paused, completed, error]
+        currentModel:
+          type: ["string", "null"]
+        startedAt:
+          type: ["string", "null"]
+        lastIterationAt:
+          type: ["string", "null"]
+        prompt:
+          type: ["string", "null"]
+        maxIterations:
+          type: integer
+
+    LoopStartInput:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+        model:
+          type: string
+        maxIterations:
+          type: integer
+
+    MetricEntry:
+      type: object
+      required: [id, timestamp, iteration, totalTokens, ramPercent, cpuLoad, latencyMs]
+      properties:
+        id:
+          type: integer
+        timestamp:
+          type: string
+        iteration:
+          type: integer
+        totalTokens:
+          type: integer
+        ramPercent:
+          type: number
+        cpuLoad:
+          type: number
+        latencyMs:
+          type: integer
+
+    MetricsSummary:
+      type: object
+      required: [totalIterations, totalTokens, estimatedCostUsd, avgRamPercent, avgCpuLoad, avgLatencyMs, peakRamPercent, successRate]
+      properties:
+        totalIterations:
+          type: integer
+        totalTokens:
+          type: integer
+        estimatedCostUsd:
+          type: number
+        avgRamPercent:
+          type: number
+        avgCpuLoad:
+          type: number
+        avgLatencyMs:
+          type: number
+        peakRamPercent:
+          type: number
+        successRate:
+          type: number
+
+    LogEntry:
+      type: object
+      required: [id, timestamp, level, message]
+      properties:
+        id:
+          type: integer
+        timestamp:
+          type: string
+        level:
+          type: string
+          enum: [INFO, SUCCESS, WARN, ERROR, STEP, CHECK]
+        message:
+          type: string
+
+    Checkpoint:
+      type: object
+      required: [id, iteration, createdAt, fileSizeBytes]
+      properties:
+        id:
+          type: integer
+        iteration:
+          type: integer
+        createdAt:
+          type: string
+        fileSizeBytes:
+          type: integer
+        notes:
+          type: ["string", "null"]
+        content:
+          type: ["string", "null"]
+        prompt:
+          type: ["string", "null"]
+        model:
+          type: ["string", "null"]
+
+    CheckpointRestoreResult:
+      type: object
+      required: [checkpointId, iteration, model, prompt, state]
+      properties:
+        checkpointId:
+          type: integer
+        iteration:
+          type: integer
+        model:
+          type: string
+        prompt:
+          type: string
+        state:
+          type: string
+
+    Settings:
+      type: object
+      required: [id, ollamaUrl, defaultModel, fallbackModel, maxIterations, maxRamPercent, gitAutoCommit, enableNotifications, telegramBotToken, telegramChatId, metricsInterval, logLevel]
+      properties:
+        id:
+          type: integer
+        ollamaUrl:
+          type: string
+        defaultModel:
+          type: string
+        fallbackModel:
+          type: string
+        maxIterations:
+          type: integer
+        maxRamPercent:
+          type: integer
+        gitAutoCommit:
+          type: boolean
+        enableNotifications:
+          type: boolean
+        telegramBotToken:
+          type: ["string", "null"]
+        telegramChatId:
+          type: ["string", "null"]
+        metricsInterval:
+          type: integer
+        logLevel:
+          type: string
+          enum: [DEBUG, INFO, WARN, ERROR]
+
+    TestConnectionInput:
+      type: object
+      properties:
+        ollamaUrl:
+          type: string
+          description: URL to test (defaults to current settings)
+
+    TestConnectionResult:
+      type: object
+      required: [success, reachable, ollamaUrl, message]
+      properties:
+        success:
+          type: boolean
+        reachable:
+          type: boolean
+        ollamaUrl:
+          type: string
+        message:
+          type: string
+        models:
+          type: array
+          items:
+            type: object
+            required: [name, size, modifiedAt, digest]
+            properties:
+              name:
+                type: string
+              size:
+                type: integer
+              modifiedAt:
+                type: string
+              digest:
+                type: string
+
+    SettingsInput:
+      type: object
+      properties:
+        ollamaUrl:
+          type: string
+        defaultModel:
+          type: string
+        fallbackModel:
+          type: string
+        maxIterations:
+          type: integer
+        maxRamPercent:
+          type: integer
+        gitAutoCommit:
+          type: boolean
+        enableNotifications:
+          type: boolean
+        telegramBotToken:
+          type: ["string", "null"]
+        telegramChatId:
+          type: ["string", "null"]
+        metricsInterval:
+          type: integer
+        logLevel:
+          type: string
+          enum: [DEBUG, INFO, WARN, ERROR]
+
+    OllamaModel:
+      type: object
+      required: [name, size, modifiedAt, status]
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        modifiedAt:
+          type: string
+        status:
+          type: string
+          enum: [available, pulling, error]
+        digest:
+          type: ["string", "null"]
+
+    ModelPullInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+
+    ModelPullResult:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    DeleteResult:
+      type: object
+      required: [deleted]
+      properties:
+        deleted:
+          type: boolean
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
