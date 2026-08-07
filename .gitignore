@@ -17,3 +17,7 @@ __pycache__/
 # System / OS
 .DS_Store
 Thumbs.db
+
+# Always keep empty-dir markers
+!.gitkeep
+!**/.gitkeep
