@@ -1,0 +1,36 @@
+{
+  "name": "ollama_generate",
+  "description": "Generate text using local Ollama models with task‑aware routing.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "description": "The input prompt for the model."
+      },
+      "model": {
+        "type": "string",
+        "description": "Optional: specific model name (overrides routing).",
+        "enum": ["deepseek-r1:8b", "qwen2.5:7b", "deepseek-v2:lite"]
+      },
+      "task": {
+        "type": "string",
+        "description": "Task type for automatic routing: code_generation, documentation, debugging, refactoring.",
+        "enum": ["code_generation", "documentation", "debugging", "refactoring"]
+      },
+      "temperature": {
+        "type": "number",
+        "description": "Sampling temperature (0.0‑1.0). Lower = deterministic.",
+        "default": 0.7
+      },
+      "max_tokens": {
+        "type": "integer",
+        "description": "Maximum number of tokens to generate.",
+        "default": 2000
+      }
+    },
+    "required": ["prompt"]
+  },
+  "command": "python3 /path/to/ollama_wrapper.py --prompt \"$prompt\" --task \"$task\" --temperature $temperature --max_tokens $max_tokens",
+  "output": "json"
+}

@@ -1,0 +1,20 @@
+[0;35m
+      _____       _           _             
+     |_   _|     (_)         | |            
+       | |  _ __  _  ___  ___| |_ ___  _ __ 
+       | | | '_ \| |/ _ \/ __| __/ _ \| '__|
+      _| |_| | | | |  __/ (__| || (_) | |   
+     |_____|_| |_| |\___|\___|\__\___/|_|   
+                _/ |                        
+               |__/                         
+[0m
+[0;36m[☠️ ] Injecting Modules....[0m
+[38;5;51m[☠️ ] Checking Dependencies....[0m
+[38;5;51m[☠️ ] Scanning Core Packages...[0m
+[38;5;51mFound Packages : 7[0m
+[38;5;220mMissing : 0[0m
+[38;5;82m[✔] Everything Looks Great.[0m
+[38;5;51m[☠️ ] Loading AI Engines....[0m
+[38;5;51m[☠️ ] Initializing Mission Control....[0m
+[38;5;51m[☠️ ] Starting Monitoring Engines....[0m
+[38;5;82m[✔] Injector Orchestrator Online.[0m
