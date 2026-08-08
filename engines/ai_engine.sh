@@ -74,10 +74,15 @@ ai_analyze_system() {
     fi
 
     # 3. Try Hydra Agent recommendation (Hydra = Rust brain)
-    if command -v hydra &>/dev/null; then
+    local hydra_bin="${HOME}/working_dir/injector-orchestrator/bin/hydra"
+    if command -v hydra &>/dev/null || [ -x "$hydra_bin" ]; then
+        local bin_cmd="hydra"
+        [ -x "$hydra_bin" ] && bin_cmd="$hydra_bin"
         local hydra_rec
-        hydra_rec=$(hydra run hydra.toml 2>/dev/null | tail -n 1)
-        [ -n "$hydra_rec" ] && recommendations+=("[HYDRA-AGENT] [CONF:HIGH] [REV:YES] $hydra_rec (Evidence: Hydra Rust Agent Loop)")
+        hydra_rec=$("$bin_cmd" doctor 2>/dev/null | grep 'model rec' | awk -F: '{print $2}' | xargs)
+        if [ -n "$hydra_rec" ]; then
+            recommendations+=("[HYDRA-AGENT] [CONF:HIGH] [REV:YES] Hardware-optimized model recommendation: ${hydra_rec} (Evidence: Hydra Rust Hardware Doctor)")
+        fi
     fi
 
     # AI model RAM recommendations
