@@ -20,7 +20,7 @@ plugin_init() {
 }
 
 plugin_report() {
-    local target="${1:-${HOME}/working_dir/injector-orchestrator/system_monitor.sh}"
+    local target="${1:-${HOME}/working_dir/sentrybill-platform/package.json}"
     local status="UNKNOWN"
     local findings="None"
     
