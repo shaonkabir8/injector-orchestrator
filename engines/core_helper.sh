@@ -89,3 +89,32 @@ safe_execute() {
             ;;
     esac
 }
+
+# SOP Engine Branch Execution (Hydra SOP pattern)
+# Gated/Conditioned steps run if matching context exists, otherwise fallback to unconditional.
+sop_execute() {
+    local context="$1"
+    shift
+    local conditioned_steps=()
+    local unconditional_steps=()
+
+    for step in "$@"; do
+        local condition="${step%%:*}"
+        local action="${step#*:}"
+        if [ "$condition" = "$action" ]; then
+            unconditional_steps+=("$action")
+        elif echo "$context" | grep -q "$condition"; then
+            conditioned_steps+=("$action")
+        fi
+    done
+
+    if [ ${#conditioned_steps[@]} -gt 0 ]; then
+        for step in "${conditioned_steps[@]}"; do
+            safe_execute "$step" "MEDIUM" "SOP Conditioned Step: $step"
+        done
+    else
+        for step in "${unconditional_steps[@]}"; do
+            safe_execute "$step" "LOW" "SOP Fallback Step: $step"
+        done
+    fi
+}

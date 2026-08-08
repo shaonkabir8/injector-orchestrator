@@ -73,6 +73,13 @@ ai_analyze_system() {
         recommendations+=("[OLLAMA] [CONF:MEDIUM] [REV:YES] $ollama_rec (Evidence: Dynamic Ollama model)")
     fi
 
+    # 3. Try Hydra Agent recommendation (Hydra = Rust brain)
+    if command -v hydra &>/dev/null; then
+        local hydra_rec
+        hydra_rec=$(hydra run hydra.toml 2>/dev/null | tail -n 1)
+        [ -n "$hydra_rec" ] && recommendations+=("[HYDRA-AGENT] [CONF:HIGH] [REV:YES] $hydra_rec (Evidence: Hydra Rust Agent Loop)")
+    fi
+
     # AI model RAM recommendations
     local total_ram_mb
     total_ram_mb=$(free -m | awk '/Mem/ {print $2}')

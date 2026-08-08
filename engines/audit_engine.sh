@@ -80,6 +80,17 @@ run_full_audit() {
                 echo "- $rec"
             done
         fi
+
+        echo ""
+        echo "## Active Plugins Audit"
+        for pf in "${INJECTOR_DIR}"/plugin_*.json; do
+            [ -f "$pf" ] || continue
+            local p_name p_stat p_time
+            p_name=$(jq -r '.plugin // "unknown"' "$pf")
+            p_stat=$(jq -r '.status // "UNKNOWN"' "$pf")
+            p_time=$(jq -r '.timestamp // 0' "$pf")
+            echo "- Plugin: ${p_name} | Status: ${p_stat} | Updated: ${p_time}"
+        done
     } > "$report_file"
 
     print_success "Audit Report saved: $report_file"
