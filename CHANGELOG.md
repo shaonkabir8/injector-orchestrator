@@ -13,6 +13,8 @@
 - `engines/plugins/hydra_critic.sh`: V3 AST code verification plugin.
 - `engines/plugins/model_pager.sh`: V3 RAM-aware Ollama model paging plugin.
 - `engines/core_helper.sh`: `sop_execute` helper applying Hydra SOP branch semantics.
+- `bin/hydra`: Compiled Hydra-Agent v1.0.0 Rust release binary.
+- SentryBill CI Gate: Added Hydra AST Critic Gate integration script.
 
 ### Changed
 - Sourced `core_helper.sh` in `system_monitor.sh`.
