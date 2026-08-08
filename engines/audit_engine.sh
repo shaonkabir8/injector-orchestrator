@@ -20,10 +20,12 @@ run_full_audit() {
 
         echo "## System Audit"
         if [ -f "${INJECTOR_DIR}/sys_state.json" ]; then
-            local cpu ram disk
+            local status cpu ram disk
+            status=$(jq -r '.status // "UNKNOWN"' "${INJECTOR_DIR}/sys_state.json")
             cpu=$(jq -r '.cpu_pct' "${INJECTOR_DIR}/sys_state.json")
             ram=$(jq -r '.ram_pct' "${INJECTOR_DIR}/sys_state.json")
             disk=$(jq -r '.disk_pct' "${INJECTOR_DIR}/sys_state.json")
+            echo "- Status: ${status}"
             echo "- CPU: ${cpu}%"
             echo "- RAM: ${ram}%"
             echo "- Disk: ${disk}%"
@@ -32,25 +34,43 @@ run_full_audit() {
         echo ""
         echo "## Docker Audit"
         if [ -f "${INJECTOR_DIR}/docker_state.json" ]; then
-            echo "- Running Containers: $(jq -r '.running_containers' "${INJECTOR_DIR}/docker_state.json")"
-            echo "- Total Images: $(jq -r '.total_images' "${INJECTOR_DIR}/docker_state.json")"
+            local status run_c tot_c
+            status=$(jq -r '.status // "UNKNOWN"' "${INJECTOR_DIR}/docker_state.json")
+            run_c=$(jq -r '.running_containers' "${INJECTOR_DIR}/docker_state.json")
+            tot_c=$(jq -r '.total_containers' "${INJECTOR_DIR}/docker_state.json")
+            echo "- Status: ${status}"
+            echo "- Running Containers: ${run_c}"
+            echo "- Total Containers: ${tot_c}"
         fi
 
         echo ""
         echo "## Security Audit"
         if [ -f "${INJECTOR_DIR}/security_state.json" ]; then
-            echo "- Issues Found: $(jq -r '.issues' "${INJECTOR_DIR}/security_state.json")"
-            echo "- Fail2Ban: $(jq -r '.fail2ban' "${INJECTOR_DIR}/security_state.json")"
-            echo "- Firewall: $(jq -r '.firewall' "${INJECTOR_DIR}/security_state.json")"
+            local status issues f2b ufw
+            status=$(jq -r '.status // "UNKNOWN"' "${INJECTOR_DIR}/security_state.json")
+            issues=$(jq -r '.issues' "${INJECTOR_DIR}/security_state.json")
+            f2b=$(jq -r '.fail2ban' "${INJECTOR_DIR}/security_state.json")
+            ufw=$(jq -r '.firewall' "${INJECTOR_DIR}/security_state.json")
+            echo "- Status: ${status}"
+            echo "- Issues Found: ${issues}"
+            echo "- Fail2Ban: ${f2b}"
+            echo "- Firewall: ${ufw}"
         fi
 
         echo ""
         echo "## Network Audit"
         if [ -f "${INJECTOR_DIR}/network_state.json" ]; then
-            echo "- Interface: $(jq -r '.iface' "${INJECTOR_DIR}/network_state.json")"
-            echo "- RX: $(jq -r '.rx_kbps' "${INJECTOR_DIR}/network_state.json") KB/s"
-            echo "- TX: $(jq -r '.tx_kbps' "${INJECTOR_DIR}/network_state.json") KB/s"
-            echo "- Open Ports: $(jq -r '.open_ports' "${INJECTOR_DIR}/network_state.json")"
+            local status iface rx tx ports
+            status=$(jq -r '.status // "UNKNOWN"' "${INJECTOR_DIR}/network_state.json")
+            iface=$(jq -r '.iface' "${INJECTOR_DIR}/network_state.json")
+            rx=$(jq -r '.rx_kbps' "${INJECTOR_DIR}/network_state.json")
+            tx=$(jq -r '.tx_kbps' "${INJECTOR_DIR}/network_state.json")
+            ports=$(jq -r '.open_ports' "${INJECTOR_DIR}/network_state.json")
+            echo "- Status: ${status}"
+            echo "- Interface: ${iface}"
+            echo "- RX: ${rx} KB/s"
+            echo "- TX: ${tx} KB/s"
+            echo "- Open Ports: ${ports}"
         fi
 
         echo ""

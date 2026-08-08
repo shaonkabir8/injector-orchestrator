@@ -36,6 +36,8 @@ _services_poll_loop() {
 
         cat <<EOF > "${INJECTOR_DIR}/services_state.json"
 {
+  "status": "VERIFIED",
+  "timestamp": $(date +'%s'),
   $services_json
 }
 EOF
@@ -55,18 +57,17 @@ init_services_engine() {
 service_control() {
     local action="$1"
     local service="$2"
+    local risk="MEDIUM"
+    [[ "$action" == "stop" ]] && risk="HIGH"
     
-    print_warn "Control Action: $action on $service"
-    read -r -p "Confirm action? (y/N) " confirm
-    if [[ "$confirm" =~ ^[Yy]$ ]]; then
-        if command -v systemctl >/dev/null 2>&1; then
-            sudo systemctl "$action" "$service"
-            print_success "Service $service $action command sent."
-            log_info "Service control: $action $service executed."
+    local cmd="sudo systemctl $action $service"
+    if ! command -v systemctl >/dev/null 2>&1; then
+        if [[ "$action" == "stop" ]]; then
+            cmd="pkill -f $service"
         else
-            print_err "systemctl not available."
+            cmd="log_err 'Cannot start without systemctl'"
         fi
-    else
-        print_info "Action aborted."
     fi
+    
+    safe_execute "$cmd" "$risk" "Service $service $action"
 }

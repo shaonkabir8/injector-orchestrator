@@ -37,6 +37,7 @@ _security_poll_loop() {
 
         cat <<EOF > "${INJECTOR_DIR}/security_state.json"
 {
+  "status": "VERIFIED",
   "issues": $issues,
   "fail2ban": "$fail2ban_status",
   "firewall": "$firewall_status",
