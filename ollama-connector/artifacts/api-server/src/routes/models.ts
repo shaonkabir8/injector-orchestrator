@@ -16,12 +16,12 @@ router.get("/models", async (req, res): Promise<void> => {
     const models = await listModels();
     res.json(GetModelsResponse.parse(models));
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Failed to contact Ollama";
+    const msg = err instanceof Error ? err.message : "Failed to contact model provider";
     await db.insert(logsTable).values({
       level: "ERROR",
       message: `Models fetch failed: ${msg}`,
     });
-    res.status(502).json({ error: `Ollama unreachable: ${msg}` });
+    res.status(502).json({ error: `Model provider unreachable: ${msg}` });
   }
 });
 
@@ -44,8 +44,8 @@ router.post("/models/pull", async (req, res): Promise<void> => {
   await db.insert(logsTable).values({
     level: result.success ? "SUCCESS" : "ERROR",
     message: result.success
-      ? `Model pulled: ${name}`
-      : `Model pull failed for ${name}: ${result.message}`,
+      ? `Model operation completed: ${name}`
+      : `Model operation failed for ${name}: ${result.message}`,
   });
 
   res.json(PullModelResponse.parse(result));
