@@ -125,7 +125,7 @@ export default function SettingsPage() {
                   name="ollamaUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs">OLLAMA HTTP ENDPOINT</FormLabel>
+                      <FormLabel className="text-xs">MODEL PROVIDER ENDPOINT</FormLabel>
                       <FormControl>
                         <Input {...field} className="rounded-none border-border bg-background" />
                       </FormControl>
@@ -168,7 +168,7 @@ export default function SettingsPage() {
                     ) : (
                       <Cable className="w-4 h-4 mr-2" />
                     )}
-                    {testingConnection ? "TESTING..." : "TEST CONNECTION"}
+                    {testingConnection ? "TESTING..." : "TEST PROVIDER CONNECTION"}
                   </Button>
 
                   {connectionTest && (
