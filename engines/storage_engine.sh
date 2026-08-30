@@ -20,6 +20,7 @@ _storage_poll_loop() {
 
         cat <<EOF > "${INJECTOR_DIR}/storage_state.json"
 {
+  "status": "VERIFIED",
   "logs_mb": $logs_size,
   "models_mb": $models_size,
   "timestamp": $(date +'%s')

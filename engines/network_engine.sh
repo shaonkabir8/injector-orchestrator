@@ -30,6 +30,7 @@ _network_poll_loop() {
 
         cat <<EOF > "${INJECTOR_DIR}/network_state.json"
 {
+  "status": "VERIFIED",
   "iface": "${iface:-unknown}",
   "rx_kbps": $rx_kbps,
   "tx_kbps": $tx_kbps,

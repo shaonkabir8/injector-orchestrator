@@ -51,6 +51,7 @@ EOF
     
     print_info "Injecting Modules...."
     # Source all engines
+    source "${PWD}/engines/core_helper.sh"
     # shellcheck source=engines/package_engine.sh
     source "${PWD}/engines/package_engine.sh"
     # shellcheck source=engines/configuration_engine.sh

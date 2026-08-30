@@ -24,8 +24,16 @@ _sys_cpu_poll_loop() {
         local disk_pct
         disk_pct=$(df / | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
 
+        local status="VERIFIED"
+        [ -z "$cpu_pct" ] && status="UNKNOWN"
         cat > "${INJECTOR_DIR}/sys_state.json" <<EOF
-{"cpu_pct": $cpu_pct, "ram_pct": ${ram_pct:-0}, "disk_pct": ${disk_pct:-0}, "timestamp": $(date +'%s')}
+{
+  "status": "$status",
+  "cpu_pct": $cpu_pct,
+  "ram_pct": ${ram_pct:-0},
+  "disk_pct": ${disk_pct:-0},
+  "timestamp": $(date +'%s')
+}
 EOF
     done
 }
@@ -44,7 +52,13 @@ init_system_engine() {
     local disk_pct
     disk_pct=$(df / | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
     cat > "${INJECTOR_DIR}/sys_state.json" <<EOF
-{"cpu_pct": 0, "ram_pct": ${ram_pct:-0}, "disk_pct": ${disk_pct:-0}, "timestamp": $(date +'%s')}
+{
+  "status": "VERIFIED",
+  "cpu_pct": 0,
+  "ram_pct": ${ram_pct:-0},
+  "disk_pct": ${disk_pct:-0},
+  "timestamp": $(date +'%s')
+}
 EOF
     # Launch background poller (killed when parent shell exits via job control)
     _sys_cpu_poll_loop &

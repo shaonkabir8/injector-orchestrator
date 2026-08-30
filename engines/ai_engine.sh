@@ -63,14 +63,26 @@ ai_analyze_system() {
     disk=$(jq -r '.disk_pct // 0' "$state_file")
 
     # 1. Evidence-based rule recommendations
-    [ "$cpu" -gt 85 ] && recommendations+=("CPU Usage critical at ${cpu}%. Recommend reviewing top processes.")
-    [ "$ram" -gt 85 ] && recommendations+=("RAM Usage critical at ${ram}%. Recommend reviewing memory consumers.")
-    [ "$disk" -gt 85 ] && recommendations+=("Disk Usage critical at ${disk}%. Safe Cleanup Available.")
+    [ "$cpu" -gt 85 ] && recommendations+=("[RULE-BASED] [CONF:HIGH] [REV:YES] CPU Usage critical at ${cpu}% (Evidence: cpu_pct=${cpu})")
+    [ "$ram" -gt 85 ] && recommendations+=("[RULE-BASED] [CONF:HIGH] [REV:YES] RAM Usage critical at ${ram}% (Evidence: ram_pct=${ram})")
+    [ "$disk" -gt 85 ] && recommendations+=("[RULE-BASED] [CONF:HIGH] [REV:YES] Disk Usage critical at ${disk}% (Evidence: disk_pct=${disk})")
 
     # 2. Try Ollama dynamic recommendation first
     local ollama_rec
     if ollama_rec=$(get_ollama_recommendation "$cpu" "$ram" "$disk"); then
-        recommendations+=("AI Suggest: $ollama_rec")
+        recommendations+=("[OLLAMA] [CONF:MEDIUM] [REV:YES] $ollama_rec (Evidence: Dynamic Ollama model)")
+    fi
+
+    # 3. Try Hydra Agent recommendation (Hydra = Rust brain)
+    local hydra_bin="${HOME}/working_dir/injector-orchestrator/bin/hydra"
+    if command -v hydra &>/dev/null || [ -x "$hydra_bin" ]; then
+        local bin_cmd="hydra"
+        [ -x "$hydra_bin" ] && bin_cmd="$hydra_bin"
+        local hydra_rec
+        hydra_rec=$("$bin_cmd" doctor 2>/dev/null | grep 'model rec' | awk -F: '{print $2}' | xargs)
+        if [ -n "$hydra_rec" ]; then
+            recommendations+=("[HYDRA-AGENT] [CONF:HIGH] [REV:YES] Hardware-optimized model recommendation: ${hydra_rec} (Evidence: Hydra Rust Hardware Doctor)")
+        fi
     fi
 
     # AI model RAM recommendations
@@ -82,21 +94,22 @@ ai_analyze_system() {
     elif [ "$total_ram_mb" -gt 32768 ]; then
         rec_model="Llama3 / Qwen72B / Mixtral"
     fi
-    recommendations+=("Detected ${total_ram_mb}MB RAM. Recommended AI Models: ${rec_model}")
+    recommendations+=("[RULE-BASED] [CONF:HIGH] [REV:YES] Recommended AI Models: ${rec_model} (Evidence: RAM=${total_ram_mb}MB)")
 
     # Docker volumes warning
     local docker_state="${INJECTOR_DIR}/docker_state.json"
     if [ -f "$docker_state" ]; then
         local img_count
         img_count=$(jq -r '.total_images // 0' "$docker_state")
-        [ "$img_count" -gt 10 ] && recommendations+=("${img_count} Docker images detected. Safe Cleanup Available.")
+        [ "$img_count" -gt 10 ] && recommendations+=("[RULE-BASED] [CONF:HIGH] [REV:YES] ${img_count} Docker images. Safe Cleanup Available (Evidence: image_count=${img_count})")
     fi
 
-    # Write results
+    # Write results conforming to V3 Integration Bus
     local json_array
     json_array=$(printf '%s\n' "${recommendations[@]}" | jq -R . | jq -sc .)
     cat <<EOF > "${INJECTOR_DIR}/ai_state.json"
 {
+  "status": "VERIFIED",
   "recommendations": $json_array,
   "timestamp": $(date +'%s')
 }

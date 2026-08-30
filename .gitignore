@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Python
+venv/
+**/venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# Logs & Temp
+*.log
+*.tmp
+*.pid
+
+# System / OS
+.DS_Store
+Thumbs.db
+
+# Always keep empty-dir markers
+!.gitkeep
+!**/.gitkeep

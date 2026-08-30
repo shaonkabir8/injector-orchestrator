@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Description: Demo Extension for Ollama Connector
+# Shows how to create and use drop-in extensions.
+# Place .ext files in ~/.ollama_connector/extensions/ to auto-load them.
+
+neon_magenta="\033[38;5;201m"
+neon_green="\033[38;5;82m"
+reset="\033[0m"
+
+echo -e "${neon_magenta}[EXT]${reset} Loading Demo Extension..."
+
+demo_greet() {
+    echo -e "${neon_green}Hello from Ollama Connector Extension!${reset}"
+    echo "You can add custom functions to the interactive menu here."
+}
+
+# This function will be available in the main shell after loading
+demo_greet
