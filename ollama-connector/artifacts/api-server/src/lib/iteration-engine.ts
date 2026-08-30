@@ -1,16 +1,16 @@
 import { db, loopStateTable, logsTable, checkpointsTable, metricsTable, settingsTable } from "@workspace/db";
-import { generate, runCodeTests } from "./ollama-client";
+import { generate, getFallbackModel, runCodeTests } from "./ollama-client";
 
 /**
  * Runs the agentic loop in the background. Each iteration:
- * 1. Calls Ollama generate with the prompt + previous context
+ * 1. Calls the configured model provider with the prompt + previous context
  * 2. Logs the response
  * 3. Runs tests on the generated code
  * 4. Saves a metric entry
  * 5. Saves a checkpoint if tests pass
  * 6. Stops when max iterations reached or tests fail consecutively
  *
- * @param model - The Ollama model to use
+ * @param model - The model to use
  * @param prompt - The master prompt for code generation
  * @param maxIterations - Maximum number of iterations
  * @param startIteration - Iteration number to start from (for checkpoint resumes)
@@ -94,7 +94,7 @@ export async function runIterationEngine(
       const msg = err instanceof Error ? err.message : "Unknown error";
       await db.insert(logsTable).values({
         level: "ERROR",
-        message: `Iteration ${i} — Ollama error: ${msg}`,
+        message: `Iteration ${i} — model provider error: ${msg}`,
       });
       consecutiveFails++;
 
@@ -105,7 +105,7 @@ export async function runIterationEngine(
           message: "Switching to fallback model...",
         });
         const settings = await db.select().from(settingsTable).limit(1);
-        const fallbackModel = settings[0]?.fallbackModel ?? "deepseek-r1:8b";
+        const fallbackModel = settings[0]?.fallbackModel || getFallbackModel();
         await db.update(loopStateTable).set({ currentModel: fallbackModel });
         model = fallbackModel;
         continue;
