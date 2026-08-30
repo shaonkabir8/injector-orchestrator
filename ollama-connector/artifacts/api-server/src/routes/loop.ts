@@ -8,6 +8,7 @@ import {
   ResumeLoopResponse,
 } from "@workspace/api-zod";
 import { runIterationEngine } from "../lib/iteration-engine";
+import { getDefaultModel } from "../lib/ollama-client";
 
 const router: IRouter = Router();
 
@@ -61,7 +62,7 @@ router.post("/loop/start", async (req, res): Promise<void> => {
       state: "running",
       iteration: 0,
       prompt,
-      currentModel: model ?? "qwen2.5:7b",
+      currentModel: model ?? getDefaultModel(),
       startedAt: new Date(),
       lastIterationAt: new Date(),
       maxIterations: maxIterations ?? 50,
@@ -73,7 +74,7 @@ router.post("/loop/start", async (req, res): Promise<void> => {
 
   // Kick off the async iteration engine — runs until completion or stop
   runIterationEngine(
-    state.currentModel ?? "qwen2.5:7b",
+    state.currentModel ?? getDefaultModel(),
     prompt,
     state.maxIterations,
     1,
