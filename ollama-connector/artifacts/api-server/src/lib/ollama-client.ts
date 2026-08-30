@@ -100,7 +100,7 @@ export function isKktokenConfigured(): boolean {
 }
 
 function getKktokenBaseUrl(): string {
-  return (process.env["KKTOKEN_BASE_URL"] || DEFAULT_KKTOKEN_URL).replace(/\\/+$/, "");
+  return (process.env["KKTOKEN_BASE_URL"] || DEFAULT_KKTOKEN_URL).replace(/\/+$/, "");
 }
 
 function isKktokenUrl(url: string): boolean {
@@ -130,7 +130,7 @@ function getKktokenSystemPrompt(): string {
 }
 
 function normalizeBaseUrl(url: string): string {
-  return url.replace(/\\/+$/, "");
+  return url.replace(/\/+$/, "");
 }
 
 function shouldTryNextKey(error: unknown): boolean {
