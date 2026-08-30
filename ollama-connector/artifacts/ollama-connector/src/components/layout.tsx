@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Terminal, Activity, FileText, Settings, PlaySquare, HardDrive, Database, Cpu } from "lucide-react";
 import { useGetLoopStatus } from "@workspace/api-client-react";
@@ -8,6 +8,37 @@ import { MobileNav } from "./mobile-nav";
 export function AppLayout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const isMobile = useIsMobile();
+  const [apiStatus, setApiStatus] = useState<"checking" | "online" | "offline">("checking");
+
+  useEffect(() => {
+    let mounted = true;
+
+    const checkApi = async () => {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 5000);
+
+      try {
+        const response = await fetch("/api/healthz", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.status !== "ok") throw new Error("API health check failed");
+        if (mounted) setApiStatus("online");
+      } catch {
+        if (mounted) setApiStatus("offline");
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    };
+
+    void checkApi();
+    const interval = window.setInterval(checkApi, 15000);
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+    };
+  }, []);
   const { data: loopStatus } = useGetLoopStatus({
     query: { refetchInterval: 3000, queryKey: ["/api/loop/status"] }
   });
@@ -45,6 +76,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
           {/* Global Status Footer */}
           <div className="p-4 border-t border-border bg-card">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">API_STATUS</span>
+              <span className={apiStatus === "online" ? "text-xs font-bold text-primary" : apiStatus === "offline" ? "text-xs font-bold text-destructive" : "text-xs font-bold text-muted-foreground"}>
+                {apiStatus.toUpperCase()}
+              </span>
+            </div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-muted-foreground">ENGINE_STATUS</span>
               <div className="flex items-center gap-2">
