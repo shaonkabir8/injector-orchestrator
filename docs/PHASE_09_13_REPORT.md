@@ -36,13 +36,17 @@
 
 **Module:** `engines/ai_engine.sh`
 
-**Capabilities:** Evidence-based recommendations only. Reads all state JSON files and generates human-readable suggestions.
+**Capabilities:** Evidence-based recommendations only. Reads all state JSON files and generates human-readable suggestions. Every recommendation carries `[SOURCE] [CONF:x] [REV:x]` labels.
 
-**Constraints:** Strictly never hallucinate. Recommendations only fire on measurable thresholds (e.g., CPU > 85%).
+**Constraints:** Strictly never hallucinate. Rule-based recommendations only fire on measurable thresholds (e.g., CPU > 85%).
 
 **AI Model Recommendations:** Based on detected RAM, recommends appropriate local Ollama models.
 
-**Future:** Can pipe to a running Ollama instance for deeper natural language analysis without breaking safety rules.
+**Ollama integration (IMPLEMENTED):** `ai_analyze_system` calls `get_ollama_recommendation`, which (when python3 + `requests`/`pyyaml` + a reachable Ollama API at `localhost:11434` are present) runs `idea_to_review/ollama_wrapper.py` and emits an `[OLLAMA] [CONF:MEDIUM]` recommendation. It fails closed and is skipped cleanly when any prerequisite is missing.
+
+**Hydra Agent integration (IMPLEMENTED):** When a `hydra` binary is available (PATH or `bin/hydra`), `hydra doctor` output produces a `[HYDRA-AGENT] [CONF:HIGH]` hardware-optimized model recommendation.
+
+**Future:** Multi-model routing (fast/reasoning/coding/external model selection) remains conceptual; current implementation uses Ollama + Hydra + rule-based sources.
 
 ---
 
@@ -64,7 +68,9 @@
 
 **Capabilities:** Auto-discovers and loads any `.sh` plugin in `engines/plugins/`. Validates plugin contract (`plugin_init` function must exist).
 
-**Plugin Contract:** Each plugin file MUST implement: `plugin_name()`, `plugin_init()`, `plugin_collect()`, `plugin_info()`.
+**Plugin Contract (enforced):** `load_all_plugins` accepts a plugin only if it defines ALL of `plugin_name()`, `plugin_health()`, `plugin_audit()`, and `plugin_report()`. On acceptance, `plugin_init()` is run once (in a subshell). `plugin_list` also calls `plugin_health()`, and the background poll loop calls `plugin_report()` every 10s.
+
+**Optional/extended hooks (supported, not enforced):** `plugin_info()`, `plugin_collect()`, `plugin_docs()`, `plugin_install()`, `plugin_remove()`. The `process_audit` and `safe_cleanup` plugins implement the extended set; `hydra_critic` and `model_pager` implement the enforced subset plus `info`/`init`.
 
 **Architecture:** Fully decoupled. Plugins cannot modify the Injector constitution or bypass safety rules.
 
