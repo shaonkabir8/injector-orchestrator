@@ -132,6 +132,7 @@ function htmlDashboard() {
   <title>Mr.0x1nj3ct04 ☠️ Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root { --bg:#090d14; --surface:#0d1520; --border:#1a2a3a; --text:#e2e8f0; --muted:#64748b; }
     html.light { --bg:#f1f5f9; --surface:#ffffff; --border:#cbd5e1; --text:#0f172a; --muted:#64748b; }
@@ -165,6 +166,17 @@ function htmlDashboard() {
     <h2 class="flex items-center gap-2 text-xs uppercase tracking-widest text-cyan-400 mb-3"><i data-lucide="sparkles" class="w-4 h-4"></i> Continue — Agentic AI &amp; Usage</h2>
     <div id="c-cards" class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-4 gap-3"></div>
   </section>
+
+  <div class="grid md:grid-cols-2 gap-6 mb-6">
+    <section class="card p-4">
+      <h2 class="flex items-center gap-2 text-xs uppercase tracking-widest text-cyan-400 mb-3"><i data-lucide="trending-up" class="w-4 h-4"></i> Token Throughput (realtime)</h2>
+      <canvas id="chart-tokens" height="140"></canvas>
+    </section>
+    <section class="card p-4">
+      <h2 class="flex items-center gap-2 text-xs uppercase tracking-widest text-cyan-400 mb-3"><i data-lucide="pie-chart" class="w-4 h-4"></i> Model Token Share</h2>
+      <canvas id="chart-models" height="140"></canvas>
+    </section>
+  </div>
 
   <div class="grid md:grid-cols-2 gap-6 mb-6">
     <section class="card p-4">
@@ -206,8 +218,37 @@ function htmlDashboard() {
         (sub ? '<div class="text-[0.7rem] text-slate-500 mt-1">' + sub + '</div>' : '') +
       '</div>';
     }
+    var tokChart=null, modelChart=null, lastTotal=null;
+    function initCharts(){
+      if(!window.Chart) return;
+      var gridC='rgba(148,163,184,0.12)', tickC='#64748b';
+      Chart.defaults.color=tickC; Chart.defaults.font.family='ui-monospace, monospace';
+      tokChart=new Chart(document.getElementById('chart-tokens'),{type:'line',
+        data:{labels:[],datasets:[{label:'tokens/interval',data:[],borderColor:'#00e5ff',backgroundColor:'rgba(0,229,255,0.12)',fill:true,tension:0.35,pointRadius:0,borderWidth:2}]},
+        options:{responsive:true,animation:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridC}},y:{grid:{color:gridC},beginAtZero:true}}}});
+      modelChart=new Chart(document.getElementById('chart-models'),{type:'doughnut',
+        data:{labels:[],datasets:[{data:[],backgroundColor:['#00e5ff','#00ff88','#ff66cc','#ffd600','#4fc3f7','#aa88ff'],borderColor:'#0d1520',borderWidth:2}]},
+        options:{responsive:true,animation:false,cutout:'62%',plugins:{legend:{position:'right',labels:{boxWidth:10,font:{size:10}}}}}});
+    }
+    function updateCharts(a){
+      var t=a.tokens||{}, models=a.models||[];
+      if(tokChart){
+        var delta = (lastTotal==null)?0:Math.max(0,(t.total||0)-lastTotal); lastTotal=t.total||0;
+        var lbl=new Date().toLocaleTimeString();
+        tokChart.data.labels.push(lbl); tokChart.data.datasets[0].data.push(delta);
+        if(tokChart.data.labels.length>30){tokChart.data.labels.shift();tokChart.data.datasets[0].data.shift();}
+        tokChart.update('none');
+      }
+      if(modelChart){
+        var top=models.slice(0,6);
+        modelChart.data.labels=top.map(function(m){return m.model;});
+        modelChart.data.datasets[0].data=top.map(function(m){return m.promptTokens+m.generatedTokens;});
+        modelChart.update('none');
+      }
+    }
     function renderContinue(a){
       var t=a.tokens||{}, ch=a.chat||{}, tl=a.tools||{}, ed=a.edits||{};
+      updateCharts(a);
       var cards = ''+
         card('coins','Est. Cost (USD)','$'+(t.estCostUsd!=null?t.estCostUsd.toFixed(4):'0'),'prompt+gen estimate','text-cyan-400')+
         card('binary','Total Tokens',fmt(t.total),fmt(t.prompt)+' in / '+fmt(t.generated)+' out')+
@@ -252,6 +293,7 @@ function htmlDashboard() {
       }
     };
     if(window.lucide) lucide.createIcons();
+    initCharts();
   </script>
 </body>
 </html>`;
