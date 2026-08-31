@@ -24,10 +24,10 @@ check() {
     local result="$2"
     if [ "$result" = "ok" ]; then
         echo -e "  ${green}PASS${reset} $name"
-        ((pass++))
+        pass=$((pass + 1))
     else
         echo -e "  ${red}FAIL${reset} $name — $result"
-        ((fail++))
+        fail=$((fail + 1))
     fi
 }
 
@@ -47,21 +47,22 @@ else
 fi
 
 # Test: Default model available
-if ollama list 2>/dev/null | grep -q "qwen2.5:7b"; then
+OLLAMA_MODELS=$(ollama list 2>/dev/null || true)
+if echo "$OLLAMA_MODELS" | grep "qwen2.5:7b" >/dev/null 2>&1; then
     check "qwen2.5:7b installed" "ok"
 else
     check "qwen2.5:7b installed" "model not found"
 fi
 
 # Test: Fallback model available
-if ollama list 2>/dev/null | grep -q "deepseek-r1:8b"; then
+if echo "$OLLAMA_MODELS" | grep "deepseek-r1:8b" >/dev/null 2>&1; then
     check "deepseek-r1:8b installed" "ok"
 else
     check "deepseek-r1:8b installed" "model not found"
 fi
 
 # Test: Cursor config
-if grep -q "Ollama" "$HOME/.config/Cursor/User/settings.json" 2>/dev/null; then
+if grep "Ollama" "$HOME/.config/Cursor/User/settings.json" >/dev/null 2>&1; then
     check "Cursor configured" "ok"
 else
     check "Cursor configured" "settings.json missing or not configured"

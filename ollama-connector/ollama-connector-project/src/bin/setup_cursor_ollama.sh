@@ -31,8 +31,9 @@ if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
 fi
 
 # Pull required models
+MODELS=$(ollama list 2>/dev/null || true)
 for model in qwen2.5:7b deepseek-r1:8b; do
-    if ! ollama list | grep -q "$model"; then
+    if ! echo "$MODELS" | grep "$model" >/dev/null 2>&1; then
         log "Pulling $model..."
         ollama pull "$model"
         log "$model ready."
