@@ -21,3 +21,16 @@ Thumbs.db
 # Always keep empty-dir markers
 !.gitkeep
 !**/.gitkeep
+
+# Environment / secrets (never commit)
+.env
+.env.local
+.env.*.local
+**/.env
+!.env.example
+!**/.env.example
+
+# Local caches / IDE assistant state
+cache/
+**/cache/
+.continue/
