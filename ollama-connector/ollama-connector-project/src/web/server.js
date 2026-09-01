@@ -201,8 +201,8 @@ function htmlDashboard() {
     <div class="flex items-center gap-3">
       <i data-lucide="bot" class="text-pink-400 w-7 h-7"></i>
       <div>
-        <h1 class="text-lg font-bold tracking-widest text-pink-400 uppercase">Mr.0x1nj3ct04 ☠️ ☠️</h1>
-        <p class="text-xs text-slate-500 tracking-wide">Ollama Connector v1.0.9 &nbsp;|&nbsp; Mr. 1nj3ct04 &nbsp;|&nbsp; realtime dev_data</p>
+        <h1 class="text-lg font-bold tracking-widest text-pink-400 uppercase">Mr.0x1nj3ct04 ☠️</h1>
+        <p class="text-xs text-slate-500 tracking-wide">Profile Connector v1.0.9 &nbsp;|&nbsp; Mr. 1nj3ct04 &nbsp;|&nbsp; realtime dev_data</p>
       </div>
     </div>
     <div class="flex items-center gap-3 text-xs">
