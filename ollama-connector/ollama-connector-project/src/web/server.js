@@ -7,11 +7,36 @@ const http = require("http");
 const fs   = require("fs");
 const path = require("path");
 const continueData = require("./continue_data.js");
+const providers = require("./providers.js");
 
 const TOOL_DIR    = process.env.HOME + "/.ollama_connector";
 const LOG_FILE    = TOOL_DIR + "/logs/connector.log";
 const METRICS_FILE = TOOL_DIR + "/data/metrics.json";
 const PORT        = process.env.PORT || 3000;
+// Bind to loopback only. This dashboard exposes usage telemetry and manages
+// API keys; it must never be reachable from the network.
+const HOST        = process.env.HOST || "127.0.0.1";
+
+// Read a JSON body with a hard size cap.
+function readJsonBody(req, cb) {
+  let size = 0;
+  const chunks = [];
+  req.on("data", (c) => {
+    size += c.length;
+    if (size > 64 * 1024) { req.destroy(); return cb(new Error("body too large")); }
+    chunks.push(c);
+  });
+  req.on("end", () => {
+    try { cb(null, JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}")); }
+    catch (e) { cb(new Error("invalid JSON body")); }
+  });
+  req.on("error", (e) => cb(e));
+}
+
+function sendJson(res, code, obj) {
+  res.writeHead(code, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+  res.end(JSON.stringify(obj));
+}
 
 let clients = [];
 
@@ -21,11 +46,12 @@ const server = http.createServer((req, res) => {
     res.end(htmlDashboard());
 
   } else if (req.url === "/events") {
+    // No CORS header: same-origin only. A wildcard here would let any site
+    // you visit read your telemetry stream from localhost.
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       "Connection":    "keep-alive",
-      "Access-Control-Allow-Origin": "*",
     });
     clients.push(res);
     req.on("close", () => { clients = clients.filter(c => c !== res); });
@@ -50,6 +76,30 @@ const server = http.createServer((req, res) => {
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ status: "ERROR", error: String(e && e.message || e) }));
     }
+
+  } else if (req.url === "/api/providers" && req.method === "GET") {
+    // Masked listing only — safe to render in the browser.
+    sendJson(res, 200, { ok: true, providers: providers.list() });
+
+  } else if (req.url === "/api/providers" && req.method === "POST") {
+    if (!providers.checkToken(req)) return sendJson(res, 401, { ok: false, errors: ["invalid or missing X-Admin-Token"] });
+    readJsonBody(req, (err, body) => {
+      if (err) return sendJson(res, 400, { ok: false, errors: [err.message] });
+      const result = providers.upsert(body || {});
+      sendJson(res, result.ok ? 200 : 400, result);
+    });
+
+  } else if (req.url.startsWith("/api/providers/") && req.url.endsWith("/reveal") && req.method === "POST") {
+    if (!providers.checkToken(req)) return sendJson(res, 401, { ok: false, errors: ["invalid or missing X-Admin-Token"] });
+    const id = decodeURIComponent(req.url.slice("/api/providers/".length, -"/reveal".length));
+    const result = providers.revealKey(id);
+    sendJson(res, result.ok ? 200 : 404, result);
+
+  } else if (req.url.startsWith("/api/providers/") && req.method === "DELETE") {
+    if (!providers.checkToken(req)) return sendJson(res, 401, { ok: false, errors: ["invalid or missing X-Admin-Token"] });
+    const id = decodeURIComponent(req.url.slice("/api/providers/".length));
+    const result = providers.remove(id);
+    sendJson(res, result.ok ? 200 : 404, result);
 
   } else {
     res.writeHead(404);
@@ -163,6 +213,42 @@ function htmlDashboard() {
   </header>
 
   <section class="mb-6">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="flex items-center gap-2 text-xs uppercase tracking-widest text-cyan-400"><i data-lucide="key-round" class="w-4 h-4"></i> Providers &amp; API Keys</h2>
+      <div class="flex items-center gap-2">
+        <input id="admin-token" type="password" placeholder="admin token (from server console)" class="card px-2 py-1 text-xs w-56 outline-none focus:border-cyan-400" style="color:var(--text)">
+        <button id="btn-unlock" class="card px-3 py-1 text-xs hover:border-cyan-400 transition">Unlock</button>
+        <button id="btn-new" class="card px-3 py-1 text-xs hover:border-emerald-400 transition text-emerald-400">+ Add</button>
+      </div>
+    </div>
+    <div id="prov-status" class="text-[0.7rem] mb-2 text-slate-500">🔒 Locked — paste the admin token printed in the server console to edit.</div>
+    <div id="prov-list" class="grid md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+
+    <div id="prov-form" class="card p-4 mt-3 hidden">
+      <div class="grid md:grid-cols-2 gap-3 text-xs">
+        <label class="block">Label
+          <input id="f-label" class="card w-full px-2 py-1 mt-1 outline-none focus:border-cyan-400" style="color:var(--text)" placeholder="GonkaRouter">
+        </label>
+        <label class="block">Base URL
+          <input id="f-baseurl" class="card w-full px-2 py-1 mt-1 outline-none focus:border-cyan-400" style="color:var(--text)" placeholder="https://api.example.io/v1">
+        </label>
+        <label class="block">Default Model
+          <input id="f-model" class="card w-full px-2 py-1 mt-1 outline-none focus:border-cyan-400" style="color:var(--text)" placeholder="deepseek-ai/DeepSeek-V4-Flash-0731">
+        </label>
+        <label class="block">API Key <span class="text-slate-500">(blank = keep existing)</span>
+          <input id="f-key" type="password" autocomplete="off" class="card w-full px-2 py-1 mt-1 outline-none focus:border-cyan-400" style="color:var(--text)" placeholder="sk-…">
+        </label>
+      </div>
+      <div class="flex items-center gap-2 mt-3">
+        <button id="f-save" class="card px-3 py-1 text-xs text-emerald-400 hover:border-emerald-400 transition">💾 Save</button>
+        <button id="f-cancel" class="card px-3 py-1 text-xs text-slate-400 hover:border-slate-400 transition">Cancel</button>
+        <span id="f-msg" class="text-[0.7rem] text-slate-500"></span>
+        <input id="f-id" type="hidden">
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-6">
     <h2 class="flex items-center gap-2 text-xs uppercase tracking-widest text-cyan-400 mb-3"><i data-lucide="sparkles" class="w-4 h-4"></i> Continue — Agentic AI &amp; Usage</h2>
     <div id="c-cards" class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-4 gap-3"></div>
   </section>
@@ -270,6 +356,91 @@ function htmlDashboard() {
       }).join('') || '<div class="text-slate-500">No tool calls yet.</div>';
       if(window.lucide) lucide.createIcons();
     }
+    // ---- Providers admin panel ----
+    var TOKEN='';
+    function hdrs(){ var h={'Content-Type':'application/json'}; if(TOKEN) h['X-Admin-Token']=TOKEN; return h; }
+    function setStatus(msg, cls){ var el=document.getElementById('prov-status'); el.textContent=msg; el.className='text-[0.7rem] mb-2 '+(cls||'text-slate-500'); }
+    function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+    function loadProviders(){
+      fetch('/api/providers').then(function(r){return r.json();}).then(function(d){
+        var list=(d.providers)||[];
+        document.getElementById('prov-list').innerHTML = list.map(function(p){
+          var keyBadge = p.hasKey
+            ? '<span class="text-emerald-400">🔑 '+esc(p.keyMasked)+'</span>'
+            : '<span class="text-yellow-400">⚠️ no key</span>';
+          return '<div class="card p-3">'+
+            '<div class="flex items-center justify-between mb-1">'+
+              '<span class="text-sm font-bold text-slate-200">'+esc(p.label)+'</span>'+
+              '<span class="text-[0.65rem] '+(p.enabled?'text-emerald-400':'text-slate-500')+'">'+(p.enabled?'● enabled':'○ disabled')+'</span>'+
+            '</div>'+
+            '<div class="text-[0.7rem] text-slate-500 truncate" title="'+esc(p.baseUrl)+'">🌐 '+esc(p.baseUrl)+'</div>'+
+            (p.defaultModel?'<div class="text-[0.7rem] text-slate-500 truncate">🤖 '+esc(p.defaultModel)+'</div>':'')+
+            '<div class="text-[0.7rem] mt-1">'+keyBadge+'</div>'+
+            '<div class="flex gap-2 mt-2">'+
+              '<button data-act="edit" data-id="'+esc(p.id)+'" class="card px-2 py-0.5 text-[0.7rem] hover:border-cyan-400">✏️ Edit</button>'+
+              '<button data-act="reveal" data-id="'+esc(p.id)+'" class="card px-2 py-0.5 text-[0.7rem] hover:border-yellow-400">👁 Reveal</button>'+
+              '<button data-act="del" data-id="'+esc(p.id)+'" class="card px-2 py-0.5 text-[0.7rem] text-red-400 hover:border-red-400">🗑 Delete</button>'+
+            '</div></div>';
+        }).join('') || '<div class="text-slate-500 text-sm">No providers configured.</div>';
+      });
+    }
+    function showForm(p){
+      document.getElementById('prov-form').classList.remove('hidden');
+      document.getElementById('f-id').value = p&&p.id?p.id:'';
+      document.getElementById('f-label').value = p&&p.label?p.label:'';
+      document.getElementById('f-baseurl').value = p&&p.baseUrl?p.baseUrl:'';
+      document.getElementById('f-model').value = p&&p.defaultModel?p.defaultModel:'';
+      document.getElementById('f-key').value='';
+      document.getElementById('f-msg').textContent='';
+    }
+    document.getElementById('btn-unlock').addEventListener('click', function(){
+      TOKEN=document.getElementById('admin-token').value.trim();
+      if(!TOKEN){ setStatus('🔒 Locked — token required.','text-yellow-400'); return; }
+      // Validate by attempting an authenticated no-op reveal on a bogus id.
+      fetch('/api/providers/__probe__/reveal',{method:'POST',headers:hdrs()}).then(function(r){
+        if(r.status===401){ TOKEN=''; setStatus('❌ Invalid admin token.','text-red-400'); }
+        else { setStatus('🔓 Unlocked — editing enabled.','text-emerald-400'); }
+      });
+    });
+    document.getElementById('btn-new').addEventListener('click', function(){ showForm(null); });
+    document.getElementById('f-cancel').addEventListener('click', function(){ document.getElementById('prov-form').classList.add('hidden'); });
+    document.getElementById('f-save').addEventListener('click', function(){
+      if(!TOKEN){ document.getElementById('f-msg').textContent='🔒 Unlock with the admin token first.'; return; }
+      var body={ id:document.getElementById('f-id').value||undefined, label:document.getElementById('f-label').value,
+        baseUrl:document.getElementById('f-baseurl').value, defaultModel:document.getElementById('f-model').value,
+        apiKey:document.getElementById('f-key').value };
+      fetch('/api/providers',{method:'POST',headers:hdrs(),body:JSON.stringify(body)})
+        .then(function(r){return r.json();}).then(function(d){
+          if(d.ok){ document.getElementById('f-msg').textContent='✅ Saved.'; document.getElementById('f-key').value=''; loadProviders(); }
+          else { document.getElementById('f-msg').textContent='❌ '+((d.errors||['failed']).join('; ')); }
+        });
+    });
+    document.getElementById('prov-list').addEventListener('click', function(e){
+      var btn=e.target.closest('button[data-act]'); if(!btn) return;
+      var id=btn.getAttribute('data-id'), act=btn.getAttribute('data-act');
+      if(act==='edit'){
+        fetch('/api/providers').then(function(r){return r.json();}).then(function(d){
+          var p=(d.providers||[]).filter(function(x){return x.id===id;})[0]; showForm(p);
+        });
+      } else if(act==='reveal'){
+        if(!TOKEN){ setStatus('🔒 Unlock with the admin token to reveal keys.','text-yellow-400'); return; }
+        fetch('/api/providers/'+encodeURIComponent(id)+'/reveal',{method:'POST',headers:hdrs()})
+          .then(function(r){return r.json();}).then(function(d){
+            if(d.ok){ setStatus('👁 '+id+': '+d.apiKey+'  (visible to this browser only)','text-yellow-400'); }
+            else { setStatus('❌ '+((d.errors||['failed']).join('; ')),'text-red-400'); }
+          });
+      } else if(act==='del'){
+        if(!TOKEN){ setStatus('🔒 Unlock with the admin token to delete.','text-yellow-400'); return; }
+        if(!confirm('Delete provider "'+id+'"? This removes its stored API key.')) return;
+        fetch('/api/providers/'+encodeURIComponent(id),{method:'DELETE',headers:hdrs()})
+          .then(function(r){return r.json();}).then(function(d){
+            if(d.ok){ setStatus('🗑 Removed '+id,'text-slate-400'); loadProviders(); }
+            else { setStatus('❌ '+((d.errors||['failed']).join('; ')),'text-red-400'); }
+          });
+      }
+    });
+    loadProviders();
+
     // Theme toggle (persisted)
     (function(){
       var root=document.documentElement, btn=document.getElementById('theme-toggle');
@@ -299,7 +470,16 @@ function htmlDashboard() {
 </html>`;
 }
 
-server.listen(PORT, () => {
-  console.log(`Dashboard running at http://localhost:${PORT}`);
+providers.ensureStore();
+
+server.listen(PORT, HOST, () => {
+  console.log(`Dashboard running at http://${HOST}:${PORT}`);
+  console.log(`Provider store: ${providers.STORE} (mode 0600)`);
+  console.log("");
+  console.log("Admin token (required for key add/update/remove):");
+  console.log(`  ${providers.ADMIN_TOKEN}`);
+  console.log("Paste it into the Providers panel to unlock editing.");
+  console.log("Set DASHBOARD_ADMIN_TOKEN to pin it across restarts.");
+  console.log("");
   console.log("Press Ctrl+C to stop");
 });
