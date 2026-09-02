@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main, ollama-upgrade]
+  pull_request:
+    branches: [main]
+
+jobs:
+  shell:
+    name: Shell syntax + shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: bash -n (syntax) on all shell scripts
+        run: |
+          set -e
+          fail=0
+          while IFS= read -r -d '' f; do
+            bash -n "$f" || { echo "SYNTAX FAIL: $f"; fail=1; }
+          done < <(find . -name '*.sh' -not -path './.git/*' -print0)
+          exit $fail
+      - name: shellcheck (non-blocking)
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          find . -name '*.sh' -not -path './.git/*' -print0 \
+            | xargs -0 shellcheck -S warning || true
+
+  node:
+    name: Dashboard syntax + smoke test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ollama-connector/ollama-connector-project/src/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: node --check (syntax)
+        run: |
+          node --check server.js
+          node --check continue_data.js
+      - name: aggregator smoke test (no dev_data present)
+        run: |
+          node -e "const {aggregate}=require('./continue_data.js'); const a=aggregate(); if(a.status!=='VERIFIED') process.exit(1); console.log('aggregate ok:', JSON.stringify(a.tokens));"
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan tracked files for API-key tokens
+        run: |
+          if git grep -nE 'sk-[A-Za-z0-9]{20,}' -- . ':(exclude).github/workflows/ci.yml'; then
+            echo 'ERROR: API key token found in tracked files'
+            exit 1
+          fi
+          echo 'clean: no sk- API key tokens in tracked files'

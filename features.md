@@ -140,11 +140,11 @@ Research Engine
 
 **Engine ≠ Skill ≠ Plugin.**
 
-### 9. 🤖 AI / Model Routing *(FUTURE)*
+### 9. 🤖 AI / Model Routing *(PARTIALLY IMPLEMENTED)*
 
 Injector should not be permanently tied to one model.
 
-> **Status:** Conceptual. Not yet implemented. Current implementation uses Ollama (IIE) as the sole AI engine.
+> **Status:** Multi-model *routing* (selecting between fast/reasoning/coding/external models) is still conceptual. However, the AI engine already runs multiple recommendation *sources* today: rule-based thresholds, a live Ollama recommendation (`get_ollama_recommendation` → `idea_to_review/ollama_wrapper.py`, when Ollama is reachable at `localhost:11434`), and a Hydra Agent (Rust) hardware recommendation (`bin/hydra doctor`). Each carries a `SOURCE`/`CONFIDENCE` label. What remains future is automatic *task-complexity-based model selection*, not Ollama usage itself.
 
 Conceptual routing:
 

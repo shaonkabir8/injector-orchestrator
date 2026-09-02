@@ -74,7 +74,8 @@ ai_analyze_system() {
     fi
 
     # 3. Try Hydra Agent recommendation (Hydra = Rust brain)
-    local hydra_bin="${HOME}/working_dir/injector-orchestrator/bin/hydra"
+    # Repo-relative by default (matches engine sourcing convention); override via INJECTOR_HYDRA_BIN.
+    local hydra_bin="${INJECTOR_HYDRA_BIN:-${PWD}/bin/hydra}"
     if command -v hydra &>/dev/null || [ -x "$hydra_bin" ]; then
         local bin_cmd="hydra"
         [ -x "$hydra_bin" ] && bin_cmd="$hydra_bin"

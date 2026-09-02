@@ -35,38 +35,56 @@ configure_cursor() {
     if [ -f "$settings" ]; then
         cp "$settings" "$settings.bak_$(date +%Y%m%d_%H%M%S)"
     fi
+    local key="${KKTOKEN_API_KEY:?KKTOKEN_API_KEY not set in environment (.env)}"
+    local base="${KKTOKEN_BASE_URL:-https://kktoken.cc/v1}"
     if command -v jq &> /dev/null; then
         if [ ! -f "$settings" ]; then echo '{}' > "$settings"; fi
-        jq '.customModels = [
-            {"name":"Ollama Qwen2.5","provider":"openai","baseUrl":"http://localhost:11434/v1","apiKey":"ollama","model":"qwen2.5:7b"},
-            {"name":"Ollama DeepSeek R1","provider":"openai","baseUrl":"http://localhost:11434/v1","apiKey":"ollama","model":"deepseek-r1:8b"}
+        jq --arg key "$key" --arg base "$base" '.customModels = [
+            {"name":"KKToken Claude Opus 5 Thinking","provider":"openai","baseUrl":$base,"apiKey":$key,"model":"claude-opus-5-thinking"},
+            {"name":"KKToken Claude Opus 4.8 Thinking","provider":"openai","baseUrl":$base,"apiKey":$key,"model":"claude-opus-4-8-thinking"},
+            {"name":"Ollama Qwen2.5","provider":"openai","baseUrl":"http://localhost:11434/v1","apiKey":"ollama","model":"qwen2.5:7b"}
         ] + (.customModels // [])' "$settings" > "$settings.tmp"
         mv "$settings.tmp" "$settings"
-        log SUCCESS "Cursor configured with jq."
-    else
-        log WARN "jq not found. Creating minimal config."
-        cat > "$settings" << 'CURSOR_CONF'
-{
-  "customModels": [
-    {
-      "name": "Ollama Qwen2.5",
-      "provider": "openai",
-      "baseUrl": "http://localhost:11434/v1",
-      "apiKey": "ollama",
-      "model": "qwen2.5:7b"
-    }
-  ]
-}
-CURSOR_CONF
-        log SUCCESS "Cursor configured (fallback)."
+        log SUCCESS "Cursor configured with KKToken + Ollama."
     fi
+    return 0
+}
+
+configure_vscode() {
+    log STEP "Configuring VSCode..."
+    local key="${KKTOKEN_API_KEY:?KKTOKEN_API_KEY not set in environment (.env)}"
+    local base="${KKTOKEN_BASE_URL:-https://kktoken.cc/v1}"
+    local vscode_settings="$HOME/.config/Code/User/settings.json"
+    local continue_config="$HOME/.continue/config.json"
+    mkdir -p "$(dirname "$vscode_settings")" "$(dirname "$continue_config")"
+
+    if command -v jq &> /dev/null; then
+        if [ ! -f "$vscode_settings" ]; then echo '{}' > "$vscode_settings"; fi
+        jq --arg key "$key" --arg base "$base" '.customModels = [
+            {"name":"KKToken Claude Opus 5 Thinking","provider":"openai","baseUrl":$base,"apiKey":$key,"model":"claude-opus-5-thinking"},
+            {"name":"KKToken Claude Opus 4.8 Thinking","provider":"openai","baseUrl":$base,"apiKey":$key,"model":"claude-opus-4-8-thinking"}
+        ] + (.customModels // [])' "$vscode_settings" > "$vscode_settings.tmp"
+        mv "$vscode_settings.tmp" "$vscode_settings"
+        log SUCCESS "VSCode settings configured with KKToken API."
+    fi
+
+    jq -n --arg key "$key" --arg base "$base" '{
+      models: [
+        {title:"KKToken Claude Opus 5 Thinking",provider:"openai",model:"claude-opus-5-thinking",apiKey:$key,apiBase:$base},
+        {title:"KKToken Claude Opus 4.8 Thinking",provider:"openai",model:"claude-opus-4-8-thinking",apiKey:$key,apiBase:$base},
+        {title:"Local Ollama Qwen2.5 7B",provider:"ollama",model:"qwen2.5:7b",apiBase:"http://127.0.0.1:11434"}
+      ],
+      tabAutocompleteModel: {title:"KKToken Claude Opus 5 Thinking",provider:"openai",model:"claude-opus-5-thinking",apiKey:$key,apiBase:$base}
+    }' > "$continue_config"
+    log SUCCESS "VSCode Continue extension configured with KKToken API."
     return 0
 }
 
 ide_integration() {
     check_ollama || return 1
     configure_cursor || return 1
-    log SUCCESS "IDE integration complete. Restart Cursor to apply changes."
+    configure_vscode || return 1
+    log SUCCESS "IDE integration complete. Restart VSCode / Cursor to apply changes."
 }
 
 auto_setup_env() {
